@@ -15,12 +15,13 @@ import time
 
 rp = RosPack()
 urdf_path = os.path.join(rp.get_path("ar_bot_description"), "urdf/ar_bot.urdf")
+plane_path = os.path.join(rp.get_path("ar_bot_sim"), "src/data/plane.urdf")
 
 p.connect(p.GUI)
 offset = [0,0,0]
 
 turtle = p.loadURDF(urdf_path,offset)
-plane = p.loadURDF("plane.urdf")
+plane = p.loadURDF(plane_path)
 p.setRealTimeSimulation(1)
 
 for j in range (p.getNumJoints(turtle)):
