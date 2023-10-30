@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- Specify some standard inertial calculations
+    https://en.wikipedia.org/wiki/List_of_moments_of_inertia -->
+    <!-- These make use of xacro's mathematical functionality -->
+
+    <xacro:macro name="solid_sphere_inertia" params="mass radius">
+        <inertial>
+            <mass value="${mass}" />
+            <inertia ixx="${(2/5) * mass * (radius*radius)}" ixy="0.0" ixz="0.0"
+                iyy="${(2/5) * mass * (radius*radius)}" iyz="0.0"
+                izz="${(2/5) * mass * (radius*radius)}" />
+        </inertial>
+    </xacro:macro>
+
+
+    <xacro:macro name="solid_cuboid_inertia" params="mass height depth width">
+        <inertial>
+            <mass value="${mass}" />
+            <inertia ixx="${(mass*(height*height+depth*depth))/12}" ixy="0" ixz="0"
+                iyy="${(mass*(width*width+depth*depth))/12}" iyz="0"
+                izz="${(mass*(width*width+height*height))/12}"
+            />
+        </inertial>
+    </xacro:macro>
+
+
+    <xacro:macro name="solid_cylinder_inertia" params="mass height radius">
+        <inertial>
+            <mass value="${mass}" />
+            <inertia ixx="${(1/12) * mass * (3*radius*radius + height*height)}" ixy="0.0" ixz="0.0"
+                iyy="${(1/12) * mass * (3*radius*radius + height*height)}" iyz="0.0"
+                izz="${(1/2) * mass * (radius*radius)}" />
+        </inertial>
+    </xacro:macro>
+
+
+</robot>
