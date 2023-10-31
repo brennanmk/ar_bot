@@ -15,7 +15,7 @@ from rospkg import RosPack
 import os
 import time
 import numpy as np
-
+import cv2
 class ARBotPybullet:
     def __init__(self, client: int) -> None:
         '''class to spawn in and control arbot
@@ -43,7 +43,23 @@ class ARBotPybullet:
         p.setJointMotorControl2(self.arbot,1,p.VELOCITY_CONTROL,targetVelocity=right_wheel_vel,force=1000, physicsClientId=self.client)
 
 
-
+    def camera(self):
+        '''based of of https://www.programcreek.com/python/example/122153/pybullet.computeViewMatrixFromYawPitchRoll
+        '''
+        view_matrix = p.computeViewMatrixFromYawPitchRoll(
+            cameraTargetPosition=[0,0,0],
+            distance=1,
+            yaw=0,
+            pitch=-90,
+            roll=0,
+            upAxisIndex=2)
+        proj_matrix = p.computeProjectionMatrixFOV(
+            fov=60, aspect=float(1920)/1080,
+            nearVal=0.1, farVal=100.0)
+        (_, _, px, _, _) = p.getCameraImage(
+            width=1920, height=1080, viewMatrix=view_matrix,
+            projectionMatrix=proj_matrix, renderer=p.ER_BULLET_HARDWARE_OPENGL)
+        return px
 class teleoperate:
     def __init__(self) -> None:
         '''helper class to allow teleoperation of the arbot
@@ -55,11 +71,11 @@ class teleoperate:
         plane = p.loadURDF(plane_path)
 
         cube_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/cube.urdf")
-
-        number_of_obstacles = np.random.randint(15)
-        for obstacle in range(number_of_obstacles):
+        
+        for obstacle in range(3):
                 obstacle_x = np.random.uniform(-0.25, 0.25)
                 obstacle_y = np.random.uniform(-0.485, 0.485)
+                
                 obstacle = p.loadURDF(cube_path, [obstacle_y,obstacle_x,0.05])
 
         goal_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/goal.urdf")
@@ -75,30 +91,11 @@ class teleoperate:
         linear=0
         angular=0
 
-        while (1):
-            time.sleep(1/30)
-            keys = p.getKeyboardEvents()
-            
-            for k,v in keys.items():
-                if (k == p.B3G_RIGHT_ARROW and (v&p.KEY_WAS_TRIGGERED)):
-                        angular = -0.5
-                if (k == p.B3G_RIGHT_ARROW and (v&p.KEY_WAS_RELEASED)):
-                        angular = 0
-                if (k == p.B3G_LEFT_ARROW and (v&p.KEY_WAS_TRIGGERED)):
-                        angular = 0.5
-                if (k == p.B3G_LEFT_ARROW and (v&p.KEY_WAS_RELEASED)):
-                        angular = 0
+        img = arbot.camera()
+        cv2.imwrite('test.png',img)
+        time.sleep(15)
 
-                if (k == p.B3G_UP_ARROW and (v&p.KEY_WAS_TRIGGERED)):
-                        linear=1
-                if (k == p.B3G_UP_ARROW and (v&p.KEY_WAS_RELEASED)):
-                        linear=0
-                if (k == p.B3G_DOWN_ARROW and (v&p.KEY_WAS_TRIGGERED)):
-                        linear=-1
-                if (k == p.B3G_DOWN_ARROW and (v&p.KEY_WAS_RELEASED)):
-                        linear=0
 
-            arbot.apply_action((linear, angular))
 
 
 if __name__ == '__main__':

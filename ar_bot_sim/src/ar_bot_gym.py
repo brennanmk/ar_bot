@@ -6,7 +6,7 @@ import pybullet as p
 import os
 from rospkg import RosPack
 import random 
-
+from ar_bot_pybullet import ARBotPybullet
 class ARBotGym(gym.Env):
     metadata = {'render.modes': ['human']}
 
@@ -66,19 +66,31 @@ class ARBotGym(gym.Env):
     def reset(self):
             p.resetSimulation()
             p.setGravity(0,0,-10)
-            rp = RosPack()
-            urdf_path = os.path.join(rp.get_path("ar_bot_description"), "urdf/ar_bot.urdf")
-            plane_path = os.path.join(rp.get_path("ar_bot_sim"), "src/data/plane.urdf")         
-               
-            turtle = p.loadURDF(urdf_path,offset)
-            planeUid = p.loadURDF(plane_path, basePosition=[0,0,-0.65])
 
-            # Set the goal to a random target
-            x = (self.np_random.uniform(5, 9) if self.np_random.randint(2) else
-                self.np_random.uniform(-5, -9))
-            y = (self.np_random.uniform(5, 9) if self.np_random.randint(2) else
-                self.np_random.uniform(-5, -9))
-            self.goal = (x, y)
+            rp = RosPack()
+            plane_path = os.path.join(rp.get_path("ar_bot_sim"), "src/maps/arena/arena.urdf")
+            plane = p.loadURDF(plane_path)
+
+            cube_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/cube.urdf")
+            
+            # Spawn random obstacles
+            for obstacle in range(3):
+                    obstacle_x = np.random.uniform(-0.25, 0.25)
+                    obstacle_y = np.random.uniform(-0.485, 0.485)
+                    
+                    obstacle = p.loadURDF(cube_path, [obstacle_y,obstacle_x,0.05])
+
+            # Spawn random goal
+            goal_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/goal.urdf")
+
+            goal_x = np.random.uniform(-0.35, 0.35)
+            goal_y = -0.585
+            goal = p.loadURDF(goal_path, [goal_x, goal_y,0])
+
+            # Spawn robot randomly
+            arbot = ARBotPybullet(self.client)
+
+            self.goal = (goal_x, goal_y)
             self.done = False
 
             p.configureDebugVisualizer(p.COV_ENABLE_RENDERING,1) # rendering's back on again
