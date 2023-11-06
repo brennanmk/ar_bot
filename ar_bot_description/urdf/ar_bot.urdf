@@ -21,6 +21,9 @@ Based off of:
   <material name="blue">
     <color rgba="0 0 0.8 1"/>
   </material>
+  <material name="neon_blue">
+    <color rgba="0 100 255 1"/>
+  </material>
   <material name="black">
     <color rgba="0 0 0 1"/>
   </material>
@@ -99,3 +102,4 @@ Based off of:
     </collision>
   </link>
 </robot>
+

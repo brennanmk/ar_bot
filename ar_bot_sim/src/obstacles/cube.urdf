@@ -5,6 +5,10 @@
     <color rgba="255 0 0 1"/>
   </material>
 
+  <material name="yellow">
+    <color rgba="255 255 0 1"/>
+  </material>
+
   <link name="cube_link">
     <contact>
       <lateral_friction value="1" />
@@ -28,4 +32,5 @@
         </geometry>
     </collision>
   </link>
+
 </robot>

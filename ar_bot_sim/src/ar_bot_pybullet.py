@@ -48,13 +48,13 @@ class ARBotPybullet:
         '''
         view_matrix = p.computeViewMatrixFromYawPitchRoll(
             cameraTargetPosition=[0,0,0],
-            distance=1,
+            distance=50,
             yaw=0,
             pitch=-90,
             roll=0,
             upAxisIndex=2)
         proj_matrix = p.computeProjectionMatrixFOV(
-            fov=60, aspect=float(1920)/1080,
+            fov=1, aspect=float(1920)/1080,
             nearVal=0.1, farVal=100.0)
         (_, _, px, _, _) = p.getCameraImage(
             width=1920, height=1080, viewMatrix=view_matrix,
@@ -86,16 +86,39 @@ class teleoperate:
         arbot = ARBotPybullet(self.client)
 
         p.setRealTimeSimulation(1)
-        p.setGravity(0,0,-10)
+        p.setGravity(0,0,-30)
 
-        linear=0
-        angular=0
+        forward=0
+        turn=0
 
-        img = arbot.camera()
-        cv2.imwrite('test.png',img)
-        time.sleep(15)
+        while (1):
+            time.sleep(1./240.)
+            keys = p.getKeyboardEvents()
+            leftWheelVelocity=0
+            rightWheelVelocity=0
+            speed=10
+            
+            for k,v in keys.items():
 
+                        if (k == p.B3G_RIGHT_ARROW and (v&p.KEY_WAS_TRIGGERED)):
+                                turn = -0.5
+                        if (k == p.B3G_RIGHT_ARROW and (v&p.KEY_WAS_RELEASED)):
+                                turn = 0
+                        if (k == p.B3G_LEFT_ARROW and (v&p.KEY_WAS_TRIGGERED)):
+                                turn = 0.5
+                        if (k == p.B3G_LEFT_ARROW and (v&p.KEY_WAS_RELEASED)):
+                                turn = 0
 
+                        if (k == p.B3G_UP_ARROW and (v&p.KEY_WAS_TRIGGERED)):
+                                forward=1
+                        if (k == p.B3G_UP_ARROW and (v&p.KEY_WAS_RELEASED)):
+                                forward=0
+                        if (k == p.B3G_DOWN_ARROW and (v&p.KEY_WAS_TRIGGERED)):
+                                forward=-1
+                        if (k == p.B3G_DOWN_ARROW and (v&p.KEY_WAS_RELEASED)):
+                                forward=0
+
+            arbot.apply_action((forward, turn))
 
 
 if __name__ == '__main__':
