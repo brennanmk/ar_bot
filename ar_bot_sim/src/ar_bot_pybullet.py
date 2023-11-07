@@ -34,6 +34,8 @@ class ARBotPybullet:
 
         self.speed = 10
 
+        self.rayIds = []
+
     def apply_action(self, action: tuple):
         linear, angular = action
 
@@ -47,45 +49,40 @@ class ARBotPybullet:
         '''simulate lidar measurement
 
         https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/batchRayCast.py
+        https://github.com/axelbr/racecar_gym/blob/master/racecar_gym/bullet/sensors.py
         '''
-        useGui = True    
         rayFrom = []
         rayTo = []
-        rayIds = []
         numRays = 8
 
         rayLen = 1
 
         rayHitColor = [1, 0, 0]
         rayMissColor = [0, 1, 0]
-        replaceLines = True
-        cubePos, cubeOrn = p.getBasePositionAndOrientation(self.arbot)
+        cubeLinear, cubeAngle = p.getBasePositionAndOrientation(self.arbot)
 
         for i in range(numRays):
-            rayFrom.append(cubePos)
+            rayFrom.append(cubeLinear)
             rayTo.append([
                 rayLen * math.sin(2. * math.pi * float(i) / numRays),
                 rayLen * math.cos(2. * math.pi * float(i) / numRays), 
-                cubePos[2]
+                cubeLinear[2]
             ])
-            if (replaceLines):
-                rayIds.append(p.addUserDebugLine(rayFrom[i], rayTo[i], rayMissColor))
-            else:
-                rayIds.append(-1)
+            self.rayIds.append(p.addUserDebugLine(rayFrom[i], rayTo[i], rayMissColor))
+
 
         results = p.rayTestBatch(rayFrom, rayTo)
-        if (useGui):
-            p.removeAllUserDebugItems()
+        p.removeAllUserDebugItems()
 
-            for i in range(numRays):
-                hitObjectUid = results[i][0]
+        for i in range(numRays):
+            hitObjectUid = results[i][0]
 
-            if (hitObjectUid < 0):
-                hitPosition = [0, 0, 0]
-                p.addUserDebugLine(rayFrom[i], rayTo[i], rayMissColor, replaceItemUniqueId=rayIds[i])
-            else:
-                hitPosition = results[i][3]
-                p.addUserDebugLine(rayFrom[i], hitPosition, rayHitColor, replaceItemUniqueId=rayIds[i])
+        if (hitObjectUid < 0):
+            hitPosition = [0, 0, 0]
+            p.addUserDebugLine(rayFrom[i], rayTo[i], rayMissColor, replaceItemUniqueId=self.rayIds[i])
+        else:
+            hitPosition = results[i][3]
+            p.addUserDebugLine(rayFrom[i], hitPosition, rayHitColor, replaceItemUniqueId=self.rayIds[i])
 
 
     def camera(self):
@@ -131,13 +128,13 @@ class teleoperate:
         arbot = ARBotPybullet(self.client)
 
         p.setRealTimeSimulation(1)
-        p.setGravity(0,0,-30)
+        p.setGravity(0,0,-40)
 
         forward=0
         turn=0
 
         while (1):
-            time.sleep(1./240.)
+            time.sleep(1./30.)
             keys = p.getKeyboardEvents()
             leftWheelVelocity=0
             rightWheelVelocity=0
