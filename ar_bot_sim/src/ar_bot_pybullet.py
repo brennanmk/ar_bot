@@ -16,6 +16,7 @@ import os
 import time
 import numpy as np
 import cv2
+import math
 class ARBotPybullet:
     def __init__(self, client: int) -> None:
         '''class to spawn in and control arbot
@@ -41,6 +42,50 @@ class ARBotPybullet:
 
         p.setJointMotorControl2(self.arbot,0,p.VELOCITY_CONTROL,targetVelocity=left_wheel_vel,force=1000, physicsClientId=self.client)
         p.setJointMotorControl2(self.arbot,1,p.VELOCITY_CONTROL,targetVelocity=right_wheel_vel,force=1000, physicsClientId=self.client)
+
+    def lidar(self):
+        '''simulate lidar measurement
+
+        https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/batchRayCast.py
+        '''
+        useGui = True    
+        rayFrom = []
+        rayTo = []
+        rayIds = []
+        numRays = 8
+
+        rayLen = 1
+
+        rayHitColor = [1, 0, 0]
+        rayMissColor = [0, 1, 0]
+        replaceLines = True
+        cubePos, cubeOrn = p.getBasePositionAndOrientation(self.arbot)
+
+        for i in range(numRays):
+            rayFrom.append(cubePos)
+            rayTo.append([
+                rayLen * math.sin(2. * math.pi * float(i) / numRays),
+                rayLen * math.cos(2. * math.pi * float(i) / numRays), 
+                cubePos[2]
+            ])
+            if (replaceLines):
+                rayIds.append(p.addUserDebugLine(rayFrom[i], rayTo[i], rayMissColor))
+            else:
+                rayIds.append(-1)
+
+        results = p.rayTestBatch(rayFrom, rayTo)
+        if (useGui):
+            p.removeAllUserDebugItems()
+
+            for i in range(numRays):
+                hitObjectUid = results[i][0]
+
+            if (hitObjectUid < 0):
+                hitPosition = [0, 0, 0]
+                p.addUserDebugLine(rayFrom[i], rayTo[i], rayMissColor, replaceItemUniqueId=rayIds[i])
+            else:
+                hitPosition = results[i][3]
+                p.addUserDebugLine(rayFrom[i], hitPosition, rayHitColor, replaceItemUniqueId=rayIds[i])
 
 
     def camera(self):
@@ -119,6 +164,7 @@ class teleoperate:
                                 forward=0
 
             arbot.apply_action((forward, turn))
+            arbot.lidar()
 
 
 if __name__ == '__main__':
