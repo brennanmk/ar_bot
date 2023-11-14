@@ -64,11 +64,7 @@ class ARBotGym(gym.Env):
             reward = 50
 
         ob = np.array(car_ob + self.goal, dtype=np.float32)
-        return ob, reward, self.done, dict()
-
-    def seed(self, seed=None):
-        self.np_random, seed = gym.utils.seeding.np_random(seed)
-        return [seed]
+        return observation, reward, complete, False, {}
 
     def reset(self):
         p.resetSimulation()
@@ -106,31 +102,6 @@ class ARBotGym(gym.Env):
             p.COV_ENABLE_RENDERING, 1
         )  # rendering's back on again
         return observation
-
-    def render(self, mode="human"):
-        if self.rendered_img is None:
-            self.rendered_img = plt.imshow(np.zeros((100, 100, 4)))
-
-        # Base information
-        car_id, client_id = self.car.get_ids()
-        proj_matrix = p.computeProjectionMatrixFOV(
-            fov=80, aspect=1, nearVal=0.01, farVal=100
-        )
-        pos, ori = [list(l) for l in p.getBasePositionAndOrientation(car_id, client_id)]
-        pos[2] = 0.2
-
-        # Rotate camera direction
-        rot_mat = np.array(p.getMatrixFromQuaternion(ori)).reshape(3, 3)
-        camera_vec = np.matmul(rot_mat, [1, 0, 0])
-        up_vec = np.matmul(rot_mat, np.array([0, 0, 1]))
-        view_matrix = p.computeViewMatrix(pos, pos + camera_vec, up_vec)
-
-        # Display image
-        frame = p.getCameraImage(100, 100, view_matrix, proj_matrix)[2]
-        frame = np.reshape(frame, (100, 100, 4))
-        self.rendered_img.set_data(frame)
-        plt.draw()
-        plt.pause(0.00001)
 
     def close(self):
         p.disconnect(self.client)

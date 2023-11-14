@@ -6,6 +6,11 @@ Brennan Miller-Klugman
 Based off of
     - https://github.com/erwincoumans/pybullet_robots/blob/master/turtlebot.py
     - https://gerardmaggiolino.medium.com/creating-openai-gym-environments-with-pybullet-part-2-a1441b9a4d8e
+Resources used for lidar: 
+    - https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/batchRayCast.py
+    - https://github.com/axelbr/racecar_gym/blob/master/racecar_gym/bullet/sensors.py
+Resources used for camera:
+    - https://www.programcreek.com/python/example/122153/pybullet.computeViewMatrixFromYawPitchRoll
 
 Simulator for AR Bot in PyBullet
 """
@@ -15,9 +20,6 @@ from rospkg import RosPack
 import os
 import time
 import numpy as np
-import cv2
-import math
-from tf.transformations import euler_from_quaternion
 
 
 class ARBotPybullet:
@@ -69,9 +71,6 @@ class ARBotPybullet:
 
     def lidar(self) -> list:
         """simulate lidar measurement
-
-        https://github.com/bulletphysics/bullet3/blob/master/examples/pybullet/examples/batchRayCast.py
-        https://github.com/axelbr/racecar_gym/blob/master/racecar_gym/bullet/sensors.py
         """
 
         ray_from = []
@@ -101,11 +100,9 @@ class ARBotPybullet:
         return result[:, 2]
 
     def camera(self):
+        """Produces top down camera image of environment
         """
-        based of of https://www.programcreek.com/python/example/122153/pybullet.computeViewMatrixFromYawPitchRoll
 
-        Produces top down camera image of environment
-        """
         view_matrix = p.computeViewMatrixFromYawPitchRoll(
             cameraTargetPosition=[0, 0, 0],
             distance=50,
