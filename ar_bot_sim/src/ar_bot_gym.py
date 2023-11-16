@@ -17,8 +17,8 @@ class ARBotGym(gym.Env):
         )
 
         self.observation_space = gym.spaces.box.Box(
-            low=np.array([-1, -1, -1, -1, -1, -1, -1, -1]), # Lidar readings between -1 and 1
-            high=np.array([1, 1, 1, 1, 1, 1, 1, 1]),
+            low=np.array([-1, -1, 0, 0, 0, 0, 0, 0, 0, 0]), # x, y distance to goal, and Lidar readings between 0 and 1
+            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
         )
         self.np_random, _ = gym.utils.seeding.np_random()
 
@@ -29,6 +29,7 @@ class ARBotGym(gym.Env):
 
         self.ar_bot = None
         self.goal = None
+        self.obstacles = None
 
         self.prev_dist_to_goal = None
         self.rendered_img = None
@@ -36,8 +37,7 @@ class ARBotGym(gym.Env):
         self.reset()
 
     def step(self, action):
-        # Feed action to the car and get observation of car's state
-        self.car.apply_action(action)
+        self.ar_bot.apply_action(action)
 
         p.stepSimulation()
 
@@ -57,7 +57,15 @@ class ARBotGym(gym.Env):
             complete = True
             reward = 50
 
-        return self.ar_bot.lidar(), reward, complete, False, {}
+        dist_to_obstacles = [np.sqrt(
+            ((robot_translation[0] - obstacle[0]) ** 2 + (robot_translation[1] - obstacle[1]) ** 2)) for obstacle in self.obstacles]
+
+        # hit obstacle
+        if [dist_to_obstacle < 0.05 for dist_to_obstacle in dist_to_obstacles]:
+            complete = True
+            reward = -100
+
+        return [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + self.ar_bot.lidar(), reward, complete, False, {}
 
     def reset(self):
         p.resetSimulation()
@@ -76,6 +84,8 @@ class ARBotGym(gym.Env):
             obstacle_x = np.random.uniform(-0.25, 0.25)
             obstacle_y = np.random.uniform(-0.485, 0.485)
 
+            self.obstacles.append(obstacle_x, obstacle_y)
+
             _ = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
 
         # Spawn random goal
@@ -90,7 +100,11 @@ class ARBotGym(gym.Env):
 
         self.goal = (goal_x, goal_y)
 
-        return self.ar_bot.lidar()
+        robot_translation, _ = p.getBasePositionAndOrientation(
+            self.arbot
+        )
+
+        return [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + self.ar_bot.lidar()
 
     def close(self):
         p.disconnect(self.client)

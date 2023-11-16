@@ -97,7 +97,7 @@ class ARBotPybullet:
             ray_to.append(lidar_end_pos)
 
         result = p.rayTestBatch(ray_from, ray_to)
-        return result[:, 2]
+        return np.array(result, dtype=object)[:, 2]
 
     def camera(self):
         """Produces top down camera image of environment
