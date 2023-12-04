@@ -75,7 +75,7 @@ class ARBotPybullet:
 
         ray_from = []
         ray_to = []
-        num_rays = 10
+        num_rays = 8
 
         lidar_range = 1
 

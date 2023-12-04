@@ -4,13 +4,12 @@ import os
 from rospkg import RosPack
 from ar_bot_pybullet import ARBotPybullet
 import numpy as np
-
+from typing import Optional
+import rospy
 class ARBotGym(gym.Env):
     metadata = {"render.modes": ["human"]}
 
     def __init__(self):
-        p.connect(p.GUI)
-
         self.action_space = gym.spaces.box.Box(
             low=np.array([0, 0]),  # Linear x and yaw between 0 and 1.5 m/s
             high=np.array([1.5, 1.5]),
@@ -22,7 +21,7 @@ class ARBotGym(gym.Env):
         )
         self.np_random, _ = gym.utils.seeding.np_random()
 
-        self.client = p.connect(p.DIRECT)
+        self.client = p.connect(p.GUI)
 
         # Reduce length of episodes for RL algorithms
         p.setTimeStep(1 / 30, self.client)
@@ -42,7 +41,7 @@ class ARBotGym(gym.Env):
         p.stepSimulation()
 
         robot_translation, _ = p.getBasePositionAndOrientation(
-            self.arbot
+            self.ar_bot.arbot
         )
 
         # reward is a function of the change in distance to goal
@@ -65,9 +64,9 @@ class ARBotGym(gym.Env):
             complete = True
             reward = -100
 
-        return [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + self.ar_bot.lidar(), reward, complete, False, {}
+        return [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + list(self.ar_bot.lidar()), reward, complete, False, {}
 
-    def reset(self):
+    def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         p.resetSimulation()
         p.setGravity(0, 0, -10)
 
@@ -78,13 +77,13 @@ class ARBotGym(gym.Env):
         _ = p.loadURDF(plane_path)
 
         cube_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/cube.urdf")
-
+        self.obstacles = []
         # Spawn random obstacles
         for _ in range(3):
             obstacle_x = np.random.uniform(-0.25, 0.25)
             obstacle_y = np.random.uniform(-0.485, 0.485)
 
-            self.obstacles.append(obstacle_x, obstacle_y)
+            self.obstacles.append([obstacle_x, obstacle_y])
 
             _ = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
 
@@ -94,17 +93,25 @@ class ARBotGym(gym.Env):
         goal_x = np.random.uniform(-0.35, 0.35)
         goal_y = -0.585
         p.loadURDF(goal_path, [goal_x, goal_y, 0])
-
+        
         # Spawn robot randomly
         self.ar_bot = ARBotPybullet(self.client)
 
         self.goal = (goal_x, goal_y)
 
         robot_translation, _ = p.getBasePositionAndOrientation(
-            self.arbot
+            self.ar_bot.arbot
         )
 
-        return [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + self.ar_bot.lidar()
+        dist_to_goal = np.sqrt(
+            ((robot_translation[0] - self.goal[0]) ** 2 + (robot_translation[1] - self.goal[1]) ** 2)
+        )
+        self.prev_dist_to_goal = dist_to_goal
+
+
+        obs = [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + list(self.ar_bot.lidar())
+
+        return obs, {}
 
     def close(self):
         p.disconnect(self.client)
