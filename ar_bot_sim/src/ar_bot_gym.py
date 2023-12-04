@@ -50,6 +50,8 @@ class ARBotGym(gym.Env):
         reward = max(self.prev_dist_to_goal - dist_to_goal, 0)
         self.prev_dist_to_goal = dist_to_goal
 
+        complete = False
+
         # goal reached
         if dist_to_goal < 0.05:
             complete = True
