@@ -28,7 +28,6 @@ class ARBotGym(gym.Env):
 
         self.ar_bot = None
         self.goal = None
-        self.obstacles = None
 
         self.prev_dist_to_goal = None
         self.rendered_img = None
@@ -56,14 +55,6 @@ class ARBotGym(gym.Env):
             complete = True
             reward = 50
 
-        dist_to_obstacles = [np.sqrt(
-            ((robot_translation[0] - obstacle[0]) ** 2 + (robot_translation[1] - obstacle[1]) ** 2)) for obstacle in self.obstacles]
-
-        # hit obstacle
-        if [dist_to_obstacle < 0.05 for dist_to_obstacle in dist_to_obstacles]:
-            complete = True
-            reward = -100
-
         return [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + list(self.ar_bot.lidar()), reward, complete, False, {}
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
@@ -77,22 +68,13 @@ class ARBotGym(gym.Env):
         _ = p.loadURDF(plane_path)
 
         cube_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/cube.urdf")
-        self.obstacles = []
-        # Spawn random obstacles
-        for _ in range(3):
-            obstacle_x = np.random.uniform(-0.25, 0.25)
-            obstacle_y = np.random.uniform(-0.485, 0.485)
-
-            self.obstacles.append([obstacle_x, obstacle_y])
-
-            _ = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
 
         # Spawn random goal
         goal_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/goal.urdf")
 
         goal_x = np.random.uniform(-0.35, 0.35)
         goal_y = -0.585
-        p.loadURDF(goal_path, [goal_x, goal_y, 0])
+        p.loadURDF(goal_path, [goal_y, goal_x, 0])
         
         # Spawn robot randomly
         self.ar_bot = ARBotPybullet(self.client)
