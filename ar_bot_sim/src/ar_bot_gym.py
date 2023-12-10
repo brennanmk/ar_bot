@@ -5,19 +5,19 @@ from rospkg import RosPack
 from ar_bot_pybullet import ARBotPybullet
 import numpy as np
 from typing import Optional
-import rospy
+
 class ARBotGym(gym.Env):
     metadata = {"render.modes": ["human"]}
 
     def __init__(self):
         self.action_space = gym.spaces.box.Box(
-            low=np.array([0, 0]),  # Linear x and yaw between 0 and 1.5 m/s
-            high=np.array([1.5, 1.5]),
+            low=np.array([-0.5, -0.5]),  # Linear x and yaw between 0 and 1.5 m/s
+            high=np.array([0.5, 0.5]),
         )
 
         self.observation_space = gym.spaces.box.Box(
-            low=np.array([-1, -1, 0, 0, 0, 0, 0, 0, 0, 0]), # x, y distance to goal, and Lidar readings between 0 and 1
-            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+            low=np.array([-1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0]), # x, y distance to goal, and Lidar readings between 0 and 1
+            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
         )
         self.np_random, _ = gym.utils.seeding.np_random()
 
@@ -32,6 +32,7 @@ class ARBotGym(gym.Env):
         self.prev_dist_to_goal = None
         self.rendered_img = None
         self.render_rot_matrix = None
+        self.count = 0
         self.reset()
 
     def step(self, action):
@@ -42,22 +43,28 @@ class ARBotGym(gym.Env):
         robot_translation, _ = p.getBasePositionAndOrientation(
             self.ar_bot.arbot
         )
+        reward = -0.1
 
-        # reward is a function of the change in distance to goal
-        dist_to_goal = np.sqrt(
-            ((robot_translation[0] - self.goal[0]) ** 2 + (robot_translation[1] - self.goal[1]) ** 2)
-        )
-        reward = max(self.prev_dist_to_goal - dist_to_goal, 0)
-        self.prev_dist_to_goal = dist_to_goal
+        dist_to_goal_y = robot_translation[0] - self.goal[0]
+        dist_to_goal_x = robot_translation[1] - self.goal[1]
 
         complete = False
 
-        # goal reached
-        if dist_to_goal < 0.05:
-            complete = True
-            reward = 50
+        lidar = list(self.ar_bot.lidar())
 
-        return [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + list(self.ar_bot.lidar()), reward, complete, False, {}
+        # goal reached
+        if dist_to_goal_y < 0.05 and dist_to_goal_x < 0.05:
+            complete = True
+            reward = 1000
+            self.count = 0
+            print("GOAL REACHED")
+
+        self.count += 1
+        if self.count > 1500:
+            complete = True
+            self.count = 0
+
+        return [dist_to_goal_y, dist_to_goal_x] + lidar, reward, complete, False, {}
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         p.resetSimulation()
@@ -81,19 +88,18 @@ class ARBotGym(gym.Env):
         # Spawn robot randomly
         self.ar_bot = ARBotPybullet(self.client)
 
-        self.goal = (goal_x, goal_y)
+        self.goal = (goal_y, goal_x)
 
         robot_translation, _ = p.getBasePositionAndOrientation(
             self.ar_bot.arbot
         )
 
-        dist_to_goal = np.sqrt(
-            ((robot_translation[0] - self.goal[0]) ** 2 + (robot_translation[1] - self.goal[1]) ** 2)
-        )
-        self.prev_dist_to_goal = dist_to_goal
+        dist_to_goal_y = robot_translation[0] - self.goal[0]
+        dist_to_goal_x = robot_translation[1] - self.goal[1]
 
+        lidar = list(self.ar_bot.lidar())
 
-        obs = [(robot_translation[0] - self.goal[0]), (robot_translation[1] - self.goal[1])] + list(self.ar_bot.lidar())
+        obs = [dist_to_goal_y, dist_to_goal_x] + lidar
 
         return obs, {}
 
