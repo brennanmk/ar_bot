@@ -39,7 +39,9 @@ Based off of:
                 <box size="0.078 0.082 0.08" />
             </geometry>
         </collision>
-        <xacro:solid_cuboid_inertia mass="0.028" height="0.08" depth="0.082" width="0.078"/>
+        <xacro:solid_cuboid_inertia mass="0.05" height="0.08" depth="0.082" width="0.078">
+            <origin rpy="0 0 0.03" xyz="0 0 0" />
+        </xacro:solid_cuboid_inertia>
     </link>
 
     <joint name="right_wheel_joint" type="continuous">
@@ -60,6 +62,9 @@ Based off of:
                 <cylinder length="0.008" radius="0.03" />
             </geometry>
         </collision>
+        <xacro:solid_cylinder_inertia mass="0.01" height="0.008" radius="0.03">
+            <origin rpy="0 0 0" xyz="0 0 0" />
+        </xacro:solid_cylinder_inertia>
     </link>
 
 
@@ -81,6 +86,9 @@ Based off of:
                 <cylinder length="0.008" radius="0.03" />
             </geometry>
         </collision>
+        <xacro:solid_cylinder_inertia mass="0.01 " height="0.008" radius="0.03">
+            <origin rpy="0 0 0" xyz="0 0 0" />
+        </xacro:solid_cylinder_inertia>
     </link>
 
     <joint name="caster_wheel_joint" type="fixed">
@@ -100,6 +108,9 @@ Based off of:
                 <sphere radius="0.006" />
             </geometry>
         </collision>
+        <xacro:solid_sphere_inertia mass="0.01" radius="0.006">
+            <origin rpy="0 0 0" xyz="0 0 0" />
+        </xacro:solid_sphere_inertia>
     </link>
 
 </robot>

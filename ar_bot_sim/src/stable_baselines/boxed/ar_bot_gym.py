@@ -7,23 +7,35 @@ import numpy as np
 from typing import Optional
 
 class ARBotGym(gym.Env):
+    '''
+    Gym environment for ARBot
+    '''
+
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self):
+    def __init__(self, render: bool = False):
+        '''
+        Setup Gym environment, start pybullet and call reset
+
+        the provided constructor argument "render" determines wheter pybullet is run headlessly
+        '''
+
+        self.render = render
+
         self.action_space = gym.spaces.box.Box(
             low=np.array([-0.5, -0.5]),  # Linear x and yaw between 0 and 1.5 m/s
             high=np.array([0.5, 0.5]),
         )
 
         self.observation_space = gym.spaces.box.Box(
-            low=np.array([-1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0]), # x, y distance to goal, and Lidar readings between 0 and 1
-            high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+            low=np.array([-1.5, -1.5, 0, 0, 0, 0, 0, 0, 0, 0, 0]), # x, y distance to goal, and Lidar readings between 0 and 1
+            high=np.array([1.5, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
         )
+
         self.np_random, _ = gym.utils.seeding.np_random()
 
-        self.client = p.connect(p.GUI)
+        self.client = p.connect(p.GUI if self.render is not False else p.DIRECT)
 
-        # Reduce length of episodes for RL algorithms
         p.setTimeStep(1 / 30, self.client)
 
         self.ar_bot = None
@@ -36,6 +48,12 @@ class ARBotGym(gym.Env):
         self.reset()
 
     def step(self, action):
+        '''
+        Take action and return observation
+
+        :param action: action to take
+        '''
+
         self.ar_bot.apply_action(action)
 
         p.stepSimulation()
@@ -52,21 +70,26 @@ class ARBotGym(gym.Env):
 
         lidar = list(self.ar_bot.lidar())
 
-        # goal reached
-        if dist_to_goal_y < 0.05 and dist_to_goal_x < 0.05:
+        # check if goal reached, if so give large reward
+        if -0.05 < dist_to_goal_y < 0.05 and -0.05 < dist_to_goal_x < 0.05:
             complete = True
             reward = 1000
             self.count = 0
-            print("GOAL REACHED")
 
         self.count += 1
         if self.count > 1500:
             complete = True
             self.count = 0
 
-        return [dist_to_goal_y, dist_to_goal_x] + lidar, reward, complete, False, {}
+        obs = [dist_to_goal_y, dist_to_goal_x] + lidar
+
+        return np.array(obs, dtype=np.float32), reward, complete, False, {}
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
+        '''
+        Reset robots posistion and goal posistion randomly
+        '''
+
         p.resetSimulation()
         p.setGravity(0, 0, -10)
 
@@ -86,7 +109,7 @@ class ARBotGym(gym.Env):
         p.loadURDF(goal_path, [goal_y, goal_x, 0])
         
         # Spawn robot randomly
-        self.ar_bot = ARBotPybullet(self.client)
+        self.ar_bot = ARBotPybullet(self.client, self.render)
 
         self.goal = (goal_y, goal_x)
 
@@ -101,7 +124,11 @@ class ARBotGym(gym.Env):
 
         obs = [dist_to_goal_y, dist_to_goal_x] + lidar
 
-        return obs, {}
+        return np.array(obs, dtype=np.float32), {}
 
     def close(self):
+        '''
+        Close pybullet sim
+        '''
+    
         p.disconnect(self.client)

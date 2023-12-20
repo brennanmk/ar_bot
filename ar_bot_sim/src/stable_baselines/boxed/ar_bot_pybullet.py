@@ -23,21 +23,25 @@ import numpy as np
 
 
 class ARBotPybullet:
-    def __init__(self, client: int) -> None:
+    def __init__(self, client: int, gui: bool) -> None:
         """class to spawn in and control arbot
 
         :param client: physics sim client ID
         """
         self.client = client
-
+        self.gui = gui
         rp = RosPack()
         urdf_path = os.path.join(rp.get_path("ar_bot_description"), "urdf/ar_bot.urdf")
 
         random_start = np.random.uniform(-0.35, 0.35)
 
         self.arbot = p.loadURDF(
-            urdf_path, [0.59, random_start, 0.05], physicsClientId=client
+            urdf_path, [0.62, random_start, 0.05], physicsClientId=client
         )
+
+        self._hit_color = [1, 0, 0]
+        self._miss_color = [0, 1, 0]
+        self._ray_ids = []
 
         self.speed = 10
 
@@ -84,7 +88,7 @@ class ARBotPybullet:
         )
 
         # Cast rays and get measurements
-        for ray_angle in np.linspace(120, 240, num_rays):
+        for i, ray_angle in enumerate(np.linspace(120, 240, num_rays)):      
             ray_angle = (
                 np.radians(ray_angle) + p.getEulerFromQuaternion(robot_orientation)[2]
             )
@@ -96,7 +100,31 @@ class ARBotPybullet:
             ray_from.append(robot_translation)
             ray_to.append(lidar_end_pos)
 
+            if (self.gui and len(self._ray_ids) < num_rays):
+                self._ray_ids.append(p.addUserDebugLine(ray_from[i], ray_to[i], self._miss_color))
+
         result = p.rayTestBatch(ray_from, ray_to)
+
+        if self.gui:
+            for i in range(num_rays):
+                hitObjectUid = result[i][0]
+
+                if (hitObjectUid < 0):
+                    p.addUserDebugLine(
+                        ray_from[i],
+                        ray_to[i],
+                        self._miss_color,
+                        replaceItemUniqueId=self._ray_ids[i]
+                    )
+                else:
+                    hit_location = result[i][3]
+                    p.addUserDebugLine(
+                        ray_from[i],
+                        hit_location,
+                        self._hit_color,
+                        replaceItemUniqueId=self._ray_ids[i]
+                    )
+
         return np.array(result, dtype=object)[:, 2]
 
     def camera(self):
@@ -139,16 +167,19 @@ class teleoperate:
 
         for obstacle in range(3):
             obstacle_x = np.random.uniform(-0.25, 0.25)
-            obstacle_y = np.random.uniform(-0.485, 0.485)
+            obstacle_y = np.random.uniform(-0.4, 0.4)
 
             obstacle = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
 
         goal_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/goal.urdf")
 
-        random_goal = np.random.uniform(-0.35, 0.35)
-        goal = p.loadURDF(goal_path, [-0.585, random_goal, 0])
+        goal_x = np.random.uniform(-0.35, 0.35)
+        goal_y = -0.585
+        p.loadURDF(goal_path, [goal_y, goal_x, 0])
 
-        arbot = ARBotPybullet(self.client)
+        goal = (goal_y, goal_x)
+
+        arbot = ARBotPybullet(self.client, True)
 
         p.setRealTimeSimulation(1)
         p.setGravity(0, 0, -10)
@@ -159,6 +190,16 @@ class teleoperate:
         while 1:
             p.stepSimulation()
             keys = p.getKeyboardEvents()
+
+            robot_translation, _ = p.getBasePositionAndOrientation(
+                arbot.arbot
+            )
+
+            dist_to_goal_y = robot_translation[0] - goal[0]
+            dist_to_goal_x = robot_translation[1] - goal[1]
+            if -0.05 < dist_to_goal_y < 0.05 and -0.05 < dist_to_goal_x < 0.05:
+                print(f"Goal Reached")
+                break
 
             for k, v in keys.items():
                 if k == p.B3G_RIGHT_ARROW and (v & p.KEY_WAS_TRIGGERED):
@@ -171,11 +212,11 @@ class teleoperate:
                     turn = 0
 
                 if k == p.B3G_UP_ARROW and (v & p.KEY_WAS_TRIGGERED):
-                    forward = 1
+                    forward = 0.5
                 if k == p.B3G_UP_ARROW and (v & p.KEY_WAS_RELEASED):
                     forward = 0
                 if k == p.B3G_DOWN_ARROW and (v & p.KEY_WAS_TRIGGERED):
-                    forward = -1
+                    forward = -0.5
                 if k == p.B3G_DOWN_ARROW and (v & p.KEY_WAS_RELEASED):
                     forward = 0
 
