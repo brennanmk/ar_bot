@@ -16,27 +16,25 @@ Simulator for AR Bot in PyBullet
 """
 
 import pybullet as p
-from rospkg import RosPack
 import os
 import time
 import numpy as np
-
+from pybullet_utils import bullet_client
 
 class ARBotPybullet:
-    def __init__(self, client: int, gui: bool) -> None:
+    def __init__(self, client: int, gui: bool, random_generator) -> None:
         """class to spawn in and control arbot
 
         :param client: physics sim client ID
         """
         self.client = client
         self.gui = gui
-        rp = RosPack()
-        urdf_path = os.path.join(rp.get_path("ar_bot_description"), "urdf/ar_bot.urdf")
+        urdf_path = "ar_bot_pybullet/agent/ar_bot.urdf"
 
-        random_start = np.random.uniform(-0.35, 0.35)
+        random_start = random_generator.uniform(-0.35, 0.35)
 
-        self.arbot = p.loadURDF(
-            urdf_path, [0.62, random_start, 0.05], physicsClientId=client
+        self.arbot = self.client.loadURDF(
+            urdf_path, [0.575, random_start, 0.05]
         )
 
         self._hit_color = [1, 0, 0]
@@ -56,21 +54,19 @@ class ARBotPybullet:
         left_wheel_vel = (linear - angular) * self.speed
         right_wheel_vel = (linear + angular) * self.speed
 
-        p.setJointMotorControl2(
+        self.client.setJointMotorControl2(
             self.arbot,
             0,
             p.VELOCITY_CONTROL,
             targetVelocity=left_wheel_vel,
             force=1000,
-            physicsClientId=self.client,
         )
-        p.setJointMotorControl2(
+        self.client.setJointMotorControl2(
             self.arbot,
             1,
             p.VELOCITY_CONTROL,
             targetVelocity=right_wheel_vel,
             force=1000,
-            physicsClientId=self.client,
         )
 
     def lidar(self) -> list:
@@ -155,31 +151,30 @@ class ARBotPybullet:
 class teleoperate:
     def __init__(self) -> None:
         """helper class to allow teleoperation of the arbot"""
-        self.client = p.connect(p.GUI)
+        self.random_generator = np.random.default_rng()
 
-        rp = RosPack()
-        plane_path = os.path.join(
-            rp.get_path("ar_bot_sim"), "src/maps/arena/arena.urdf"
-        )
+        self.client = bullet_client.BulletClient(p.GUI)
+
+        plane_path = "ar_bot_pybullet/env/maps/arena/arena.urdf"
         plane = p.loadURDF(plane_path)
 
-        cube_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/cube.urdf")
+        cube_path = "ar_bot_pybullet/env/obstacles/cube.urdf"
 
         for obstacle in range(3):
-            obstacle_x = np.random.uniform(-0.25, 0.25)
-            obstacle_y = np.random.uniform(-0.4, 0.4)
+            obstacle_x = self.random_generator.uniform(-0.25, 0.25)
+            obstacle_y = self.random_generator.uniform(-0.4, 0.4)
 
             obstacle = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
 
-        goal_path = os.path.join(rp.get_path("ar_bot_sim"), "src/obstacles/goal.urdf")
+        goal_path = "ar_bot_pybullet/env/obstacles/goal.urdf"
 
-        goal_x = np.random.uniform(-0.35, 0.35)
+        goal_x = self.random_generator.uniform(-0.35, 0.35)
         goal_y = -0.585
         p.loadURDF(goal_path, [goal_y, goal_x, 0])
 
         goal = (goal_y, goal_x)
 
-        arbot = ARBotPybullet(self.client, True)
+        arbot = ARBotPybullet(self.client, True, self.random_generator)
 
         p.setRealTimeSimulation(1)
         p.setGravity(0, 0, -10)

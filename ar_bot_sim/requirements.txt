@@ -1,3 +1,4 @@
 gymnasium
 pybullet
 stable-baselines3
+ipywidgets
