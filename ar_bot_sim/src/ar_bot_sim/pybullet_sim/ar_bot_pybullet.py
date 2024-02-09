@@ -19,27 +19,24 @@ import pybullet as p
 import time
 import numpy as np
 from pybullet_utils import bullet_client
-
+import random
+import os
 
 class ARBotPybullet:
-    def __init__(self, client: int, gui: bool, random_generator) -> None:
+    def __init__(self, client: int, arbot, gui: bool) -> None:
         """class to spawn in and control arbot
 
         :param client: physics sim client ID
         """
         self.client = client
         self.gui = gui
-        urdf_path = "ar_bot_pybullet/agent/ar_bot.urdf"
-
-        random_start = random_generator.uniform(-0.35, 0.35)
-
-        self.arbot = self.client.loadURDF(urdf_path, [0.575, random_start, 0.05])
+        self.arbot = arbot
 
         self._hit_color = [1, 0, 0]
         self._miss_color = [0, 1, 0]
         self._ray_ids = []
 
-        self.speed = 10
+        self.speed = 5
 
     def apply_action(self, action: tuple) -> None:
         """
@@ -57,14 +54,14 @@ class ARBotPybullet:
             0,
             p.VELOCITY_CONTROL,
             targetVelocity=left_wheel_vel,
-            force=1000,
+            force=500,
         )
         self.client.setJointMotorControl2(
             self.arbot,
             1,
             p.VELOCITY_CONTROL,
             targetVelocity=right_wheel_vel,
-            force=1000,
+            force=500,
         )
 
     def lidar(self) -> list:
@@ -149,30 +146,40 @@ class ARBotPybullet:
 class teleoperate:
     def __init__(self) -> None:
         """helper class to allow teleoperation of the arbot"""
-        self.random_generator = np.random.default_rng()
 
+        import rospkg
+
+        rospack = rospkg.RosPack()
+        simulator_path = rospack.get_path("ar_bot_sim")
+        robot_description_path = rospack.get_path("ar_bot_description")
+        
         self.client = bullet_client.BulletClient(p.GUI)
 
-        plane_path = "ar_bot_pybullet/env/maps/arena/arena.urdf"
-        plane = p.loadURDF(plane_path)
+        plane_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/maps/arena/arena.urdf")
+        _ = p.loadURDF(plane_path)
 
-        cube_path = "ar_bot_pybullet/env/obstacles/cube.urdf"
+        cube_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/obstacles/cube.urdf")
 
-        for obstacle in range(3):
-            obstacle_x = self.random_generator.uniform(-0.25, 0.25)
-            obstacle_y = self.random_generator.uniform(-0.4, 0.4)
+        for _ in range(3):
+            obstacle_x = random.uniform(-0.25, 0.25)
+            obstacle_y = random.uniform(-0.4, 0.4)
 
             obstacle = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
 
-        goal_path = "ar_bot_pybullet/env/obstacles/goal.urdf"
+        goal_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/obstacles/goal.urdf")
 
-        goal_x = self.random_generator.uniform(-0.35, 0.35)
+        goal_x = random.uniform(-0.35, 0.35)
         goal_y = -0.585
         p.loadURDF(goal_path, [goal_y, goal_x, 0])
 
         goal = (goal_y, goal_x)
+    
+        ar_bot_urdf_path = os.path.join(robot_description_path, "urdf/ar_bot.urdf")
+        random_start = random.uniform(-0.35, 0.35)
 
-        arbot = ARBotPybullet(self.client, True, self.random_generator)
+        arbot = self.client.loadURDF(ar_bot_urdf_path, [0.575, random_start, 0.05])
+
+        arbot_pybullet = ARBotPybullet(self.client, arbot, True)
 
         p.setRealTimeSimulation(1)
         p.setGravity(0, 0, -10)
@@ -184,7 +191,7 @@ class teleoperate:
             p.stepSimulation()
             keys = p.getKeyboardEvents()
 
-            robot_translation, _ = p.getBasePositionAndOrientation(arbot.arbot)
+            robot_translation, _ = p.getBasePositionAndOrientation(arbot_pybullet.arbot)
 
             dist_to_goal_y = robot_translation[0] - goal[0]
             dist_to_goal_x = robot_translation[1] - goal[1]
@@ -211,8 +218,7 @@ class teleoperate:
                 if k == p.B3G_DOWN_ARROW and (v & p.KEY_WAS_RELEASED):
                     forward = 0
 
-            arbot.apply_action((forward, turn))
-            arbot.lidar()
+            arbot_pybullet.apply_action((forward, turn))
 
             time.sleep(1.0 / 240.0)
 

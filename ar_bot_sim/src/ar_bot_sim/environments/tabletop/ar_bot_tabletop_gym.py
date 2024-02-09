@@ -1,11 +1,15 @@
 import gymnasium as gym
 import pybullet as p
 import numpy as np
+import random
+import time
+import os
 from typing import Optional
 from pybullet_utils import bullet_client
+from ar_bot_sim.pybullet_sim.ar_bot_pybullet import ARBotPybullet
+import rospkg
 
-
-class ARBotGym(gym.Env):
+class ARBotTabletopGym(gym.Env):
     """
     Gym environment for ARBot
     """
@@ -14,25 +18,27 @@ class ARBotGym(gym.Env):
 
     def __init__(
         self,
-        agent,
-        actions,
-        discrete_action_mapping,
-        random_generator,
-        obstacle,
-        render=False,
+        config
     ):
         """
         Setup Gym environment, start pybullet and call reset
-
-        the provided constructor argument "render" determines wheter pybullet is run headlessly
         """
 
-        self.discrete_action_mapping = discrete_action_mapping
-        self.agent = agent
-        self.render = render
-        self.obstacle = obstacle
+        self.discrete_action_mapping = config["discrete_action_mapping"]
+        self.render_simulation = config["render_simulation"]
+        self.number_of_obstacles = config["number_of_obstacles"] 
+        self.action_space = config["actions"]
+        self.max_timesteps_per_episode = config["max_timesteps_per_episode"]
 
-        self.action_space = actions
+        rospack = rospkg.RosPack()
+        simulator_path = rospack.get_path("ar_bot_sim")
+        robot_description_path = rospack.get_path("ar_bot_description")
+
+        self.plane_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/maps/arena/arena.urdf")
+        self.cube_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/obstacles/cube.urdf")
+        self.goal_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/obstacles/goal.urdf")
+        self.ar_bot_urdf_path = os.path.join(robot_description_path, "urdf/ar_bot.urdf")
+
 
         self.observation_space = gym.spaces.box.Box(
             low=np.array(
@@ -46,10 +52,8 @@ class ARBotGym(gym.Env):
 
         self.episode_reward_tracker = []
 
-        self.random_generator = random_generator
-
         self.client = bullet_client.BulletClient(
-            p.GUI if self.render is True else p.DIRECT
+            p.GUI if self.render_simulation else p.DIRECT
         )
 
         self.client.setTimeStep(1 / 30)
@@ -58,7 +62,7 @@ class ARBotGym(gym.Env):
         self.goal = None
 
         self.count = 0
-        self.reset()
+        self.reset(seed=config.worker_index * config.num_workers * int(time.time()))
 
     def step(self, action):
         """
@@ -66,14 +70,7 @@ class ARBotGym(gym.Env):
 
         :param action: action to take
         """
-        if isinstance(self.action_space, gym.spaces.Discrete):
-            action = self.discrete_action_mapping[action]
-        elif isinstance(self.action_space, gym.spaces.MultiDiscrete):
-            linear, angular = action
-            action = (
-                self.discrete_action_mapping[linear],
-                self.discrete_action_mapping[angular],
-            )
+        action = self.discrete_action_mapping[action]
 
         self.ar_bot.apply_action(action)
 
@@ -90,7 +87,7 @@ class ARBotGym(gym.Env):
         lidar = list(self.ar_bot.lidar())
 
         self.count += 1
-        if self.count >= 2000:
+        if self.count >= self.max_timesteps_per_episode:
             complete = True
             self.count = 0
 
@@ -104,39 +101,38 @@ class ARBotGym(gym.Env):
 
         self.episode_reward_tracker.append(reward)
 
-        if complete:
-            self.collect_statistics()
-
         return np.array(obs, dtype=np.float32), reward, complete, False, {}
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         """
         Reset robots posistion and goal posistion randomly
         """
+        if seed is not None: random.seed(seed)
 
         p.resetSimulation()
         p.setGravity(0, 0, -10)
 
-        plane_path = "ar_bot_pybullet/env/maps/arena/arena.urdf"
-        _ = p.loadURDF(plane_path)
+        self.count = 0
 
-        cube_path = "ar_bot_pybullet/env/obstacles/cube.urdf"
-        if self.obstacle:
-            for _ in range(self.random_generator.integers(0, 3)):
-                obstacle_x = self.random_generator.uniform(-0.25, 0.25)
-                obstacle_y = self.random_generator.uniform(-0.4, 0.4)
+        _ = p.loadURDF(self.plane_path)
+ 
+        for _ in range(random.randint(0, self.number_of_obstacles)):
+            obstacle_x = random.uniform(-0.25, 0.25)
+            obstacle_y = random.uniform(-0.4, 0.4)
 
-                obstacle = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
+            _ = p.loadURDF(self.cube_path, [obstacle_y, obstacle_x, 0.05])
 
         # Spawn random goal
-        goal_path = "ar_bot_pybullet/env/obstacles/goal.urdf"
-
-        goal_x = self.random_generator.uniform(-0.335, 0.335)
+        goal_x = random.uniform(-0.335, 0.335)
         goal_y = -0.585
-        p.loadURDF(goal_path, [goal_y, goal_x, 0])
+        p.loadURDF(self.goal_path, [goal_y, goal_x, 0])
 
-        # Spawn robot randomly
-        self.ar_bot = self.agent(self.client, self.render, self.random_generator)
+        # Spawn robot in at random location
+        random_start = random.uniform(-0.35, 0.35)
+
+        arbot = self.client.loadURDF(self.ar_bot_urdf_path, [0.575, random_start, 0.05])
+
+        self.ar_bot = ARBotPybullet(self.client, arbot, self.render_simulation)
 
         self.goal = (goal_y, goal_x)
 
@@ -156,15 +152,4 @@ class ARBotGym(gym.Env):
         Close pybullet sim
         """
 
-        self.collect_statistics()()
-
         self.client.disconnect()
-
-    def collect_statistics(self) -> None:
-        """
-        collect statistics function is used to record total sum and total timesteps per episode
-        """
-        self.total_sum_reward_tracker.append(sum(self.episode_reward_tracker))
-        self.total_timestep_tracker.append(len(self.episode_reward_tracker))
-
-        self.episode_reward_tracker = []
