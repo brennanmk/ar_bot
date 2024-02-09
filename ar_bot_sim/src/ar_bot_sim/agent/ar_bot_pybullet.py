@@ -16,10 +16,10 @@ Simulator for AR Bot in PyBullet
 """
 
 import pybullet as p
-import os
 import time
 import numpy as np
 from pybullet_utils import bullet_client
+
 
 class ARBotPybullet:
     def __init__(self, client: int, gui: bool, random_generator) -> None:
@@ -33,9 +33,7 @@ class ARBotPybullet:
 
         random_start = random_generator.uniform(-0.35, 0.35)
 
-        self.arbot = self.client.loadURDF(
-            urdf_path, [0.575, random_start, 0.05]
-        )
+        self.arbot = self.client.loadURDF(urdf_path, [0.575, random_start, 0.05])
 
         self._hit_color = [1, 0, 0]
         self._miss_color = [0, 1, 0]
@@ -70,8 +68,7 @@ class ARBotPybullet:
         )
 
     def lidar(self) -> list:
-        """simulate lidar measurement
-        """
+        """simulate lidar measurement"""
 
         ray_from = []
         ray_to = []
@@ -84,7 +81,7 @@ class ARBotPybullet:
         )
 
         # Cast rays and get measurements
-        for i, ray_angle in enumerate(np.linspace(120, 240, num_rays)):      
+        for i, ray_angle in enumerate(np.linspace(120, 240, num_rays)):
             ray_angle = (
                 np.radians(ray_angle) + p.getEulerFromQuaternion(robot_orientation)[2]
             )
@@ -96,8 +93,10 @@ class ARBotPybullet:
             ray_from.append(robot_translation)
             ray_to.append(lidar_end_pos)
 
-            if (self.gui and len(self._ray_ids) < num_rays):
-                self._ray_ids.append(p.addUserDebugLine(ray_from[i], ray_to[i], self._miss_color))
+            if self.gui and len(self._ray_ids) < num_rays:
+                self._ray_ids.append(
+                    p.addUserDebugLine(ray_from[i], ray_to[i], self._miss_color)
+                )
 
         result = p.rayTestBatch(ray_from, ray_to)
 
@@ -105,12 +104,12 @@ class ARBotPybullet:
             for i in range(num_rays):
                 hitObjectUid = result[i][0]
 
-                if (hitObjectUid < 0):
+                if hitObjectUid < 0:
                     p.addUserDebugLine(
                         ray_from[i],
                         ray_to[i],
                         self._miss_color,
-                        replaceItemUniqueId=self._ray_ids[i]
+                        replaceItemUniqueId=self._ray_ids[i],
                     )
                 else:
                     hit_location = result[i][3]
@@ -118,14 +117,13 @@ class ARBotPybullet:
                         ray_from[i],
                         hit_location,
                         self._hit_color,
-                        replaceItemUniqueId=self._ray_ids[i]
+                        replaceItemUniqueId=self._ray_ids[i],
                     )
 
         return np.array(result, dtype=object)[:, 2]
 
     def camera(self):
-        """Produces top down camera image of environment
-        """
+        """Produces top down camera image of environment"""
 
         view_matrix = p.computeViewMatrixFromYawPitchRoll(
             cameraTargetPosition=[0, 0, 0],
@@ -186,9 +184,7 @@ class teleoperate:
             p.stepSimulation()
             keys = p.getKeyboardEvents()
 
-            robot_translation, _ = p.getBasePositionAndOrientation(
-                arbot.arbot
-            )
+            robot_translation, _ = p.getBasePositionAndOrientation(arbot.arbot)
 
             dist_to_goal_y = robot_translation[0] - goal[0]
             dist_to_goal_x = robot_translation[1] - goal[1]
