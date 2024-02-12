@@ -74,7 +74,7 @@ class ARBotTabletopGym(gym.Env):
 
         self.ar_bot.apply_action(action)
 
-        p.stepSimulation()
+        self.client.stepSimulation()
 
         robot_translation, _ = p.getBasePositionAndOrientation(self.ar_bot.arbot)
         reward = -0.1
@@ -125,6 +125,9 @@ class ARBotTabletopGym(gym.Env):
         # Spawn random goal
         goal_x = random.uniform(-0.335, 0.335)
         goal_y = -0.585
+
+        self.goal = (goal_y, goal_x)
+
         p.loadURDF(self.goal_path, [goal_y, goal_x, 0])
 
         # Spawn robot in at random location
@@ -134,7 +137,9 @@ class ARBotTabletopGym(gym.Env):
 
         self.ar_bot = ARBotPybullet(self.client, arbot, self.render_simulation)
 
-        self.goal = (goal_y, goal_x)
+        for i in range(100):
+            self.client.stepSimulation()
+
 
         robot_translation, _ = p.getBasePositionAndOrientation(self.ar_bot.arbot)
 
@@ -145,7 +150,7 @@ class ARBotTabletopGym(gym.Env):
 
         obs = [dist_to_goal_y, dist_to_goal_x] + lidar
 
-        return np.array(obs, dtype=np.float32), {}
+        return  np.array(obs, dtype=np.float32), {}
 
     def close(self):
         """

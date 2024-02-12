@@ -15,15 +15,11 @@ Resources used for camera:
 Simulator for AR Bot in PyBullet
 """
 
-import pybullet as p
-import time
 import numpy as np
 from pybullet_utils import bullet_client
-import random
-import os
 
 class ARBotPybullet:
-    def __init__(self, client: int, arbot, gui: bool) -> None:
+    def __init__(self, client: bullet_client, arbot: object, gui: bool) -> None:
         """class to spawn in and control arbot
 
         :param client: physics sim client ID
@@ -31,6 +27,7 @@ class ARBotPybullet:
         self.client = client
         self.gui = gui
         self.arbot = arbot
+
 
         self._hit_color = [1, 0, 0]
         self._miss_color = [0, 1, 0]
@@ -49,17 +46,20 @@ class ARBotPybullet:
         left_wheel_vel = (linear - angular) * self.speed
         right_wheel_vel = (linear + angular) * self.speed
 
+
+
+
         self.client.setJointMotorControl2(
             self.arbot,
             0,
-            p.VELOCITY_CONTROL,
+            self.client.VELOCITY_CONTROL,
             targetVelocity=left_wheel_vel,
             force=500,
         )
         self.client.setJointMotorControl2(
             self.arbot,
             1,
-            p.VELOCITY_CONTROL,
+            self.client.VELOCITY_CONTROL,
             targetVelocity=right_wheel_vel,
             force=500,
         )
@@ -73,14 +73,14 @@ class ARBotPybullet:
 
         lidar_range = 1
 
-        robot_translation, robot_orientation = p.getBasePositionAndOrientation(
+        robot_translation, robot_orientation = self.client.getBasePositionAndOrientation(
             self.arbot
         )
 
         # Cast rays and get measurements
         for i, ray_angle in enumerate(np.linspace(120, 240, num_rays)):
             ray_angle = (
-                np.radians(ray_angle) + p.getEulerFromQuaternion(robot_orientation)[2]
+                np.radians(ray_angle) + self.client.getEulerFromQuaternion(robot_orientation)[2]
             )
 
             ray_direction = np.array([np.cos(ray_angle), np.sin(ray_angle), 0])
@@ -92,17 +92,17 @@ class ARBotPybullet:
 
             if self.gui and len(self._ray_ids) < num_rays:
                 self._ray_ids.append(
-                    p.addUserDebugLine(ray_from[i], ray_to[i], self._miss_color)
+                    self.client.addUserDebugLine(ray_from[i], ray_to[i], self._miss_color)
                 )
 
-        result = p.rayTestBatch(ray_from, ray_to)
+        result = self.client.rayTestBatch(ray_from, ray_to)
 
         if self.gui:
             for i in range(num_rays):
                 hitObjectUid = result[i][0]
 
                 if hitObjectUid < 0:
-                    p.addUserDebugLine(
+                    self.client.addUserDebugLine(
                         ray_from[i],
                         ray_to[i],
                         self._miss_color,
@@ -110,7 +110,7 @@ class ARBotPybullet:
                     )
                 else:
                     hit_location = result[i][3]
-                    p.addUserDebugLine(
+                    self.client.addUserDebugLine(
                         ray_from[i],
                         hit_location,
                         self._hit_color,
@@ -122,7 +122,7 @@ class ARBotPybullet:
     def camera(self):
         """Produces top down camera image of environment"""
 
-        view_matrix = p.computeViewMatrixFromYawPitchRoll(
+        view_matrix = self.client.computeViewMatrixFromYawPitchRoll(
             cameraTargetPosition=[0, 0, 0],
             distance=50,
             yaw=0,
@@ -130,98 +130,14 @@ class ARBotPybullet:
             roll=0,
             upAxisIndex=2,
         )
-        proj_matrix = p.computeProjectionMatrixFOV(
+        proj_matrix = self.client.computeProjectionMatrixFOV(
             fov=1, aspect=float(1920) / 1080, nearVal=0.1, farVal=100.0
         )
-        (_, _, px, _, _) = p.getCameraImage(
+        (_, _, px, _, _) = self.client.getCameraImage(
             width=1920,
             height=1080,
             viewMatrix=view_matrix,
             projectionMatrix=proj_matrix,
-            renderer=p.ER_BULLET_HARDWARE_OPENGL,
+            renderer=self.client.ER_BULLET_HARDWARE_OPENGL,
         )
         return px
-
-
-class teleoperate:
-    def __init__(self) -> None:
-        """helper class to allow teleoperation of the arbot"""
-
-        import rospkg
-
-        rospack = rospkg.RosPack()
-        simulator_path = rospack.get_path("ar_bot_sim")
-        robot_description_path = rospack.get_path("ar_bot_description")
-        
-        self.client = bullet_client.BulletClient(p.GUI)
-
-        plane_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/maps/arena/arena.urdf")
-        _ = p.loadURDF(plane_path)
-
-        cube_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/obstacles/cube.urdf")
-
-        for _ in range(3):
-            obstacle_x = random.uniform(-0.25, 0.25)
-            obstacle_y = random.uniform(-0.4, 0.4)
-
-            obstacle = p.loadURDF(cube_path, [obstacle_y, obstacle_x, 0.05])
-
-        goal_path = os.path.join(simulator_path, "src/ar_bot_sim/environments/tabletop/obstacles/goal.urdf")
-
-        goal_x = random.uniform(-0.35, 0.35)
-        goal_y = -0.585
-        p.loadURDF(goal_path, [goal_y, goal_x, 0])
-
-        goal = (goal_y, goal_x)
-    
-        ar_bot_urdf_path = os.path.join(robot_description_path, "urdf/ar_bot.urdf")
-        random_start = random.uniform(-0.35, 0.35)
-
-        arbot = self.client.loadURDF(ar_bot_urdf_path, [0.575, random_start, 0.05])
-
-        arbot_pybullet = ARBotPybullet(self.client, arbot, True)
-
-        p.setRealTimeSimulation(1)
-        p.setGravity(0, 0, -10)
-
-        forward = 0
-        turn = 0
-
-        while 1:
-            p.stepSimulation()
-            keys = p.getKeyboardEvents()
-
-            robot_translation, _ = p.getBasePositionAndOrientation(arbot_pybullet.arbot)
-
-            dist_to_goal_y = robot_translation[0] - goal[0]
-            dist_to_goal_x = robot_translation[1] - goal[1]
-            if -0.05 < dist_to_goal_y < 0.05 and -0.05 < dist_to_goal_x < 0.05:
-                print(f"Goal Reached")
-                break
-
-            for k, v in keys.items():
-                if k == p.B3G_RIGHT_ARROW and (v & p.KEY_WAS_TRIGGERED):
-                    turn = -0.5
-                if k == p.B3G_RIGHT_ARROW and (v & p.KEY_WAS_RELEASED):
-                    turn = 0
-                if k == p.B3G_LEFT_ARROW and (v & p.KEY_WAS_TRIGGERED):
-                    turn = 0.5
-                if k == p.B3G_LEFT_ARROW and (v & p.KEY_WAS_RELEASED):
-                    turn = 0
-
-                if k == p.B3G_UP_ARROW and (v & p.KEY_WAS_TRIGGERED):
-                    forward = 0.5
-                if k == p.B3G_UP_ARROW and (v & p.KEY_WAS_RELEASED):
-                    forward = 0
-                if k == p.B3G_DOWN_ARROW and (v & p.KEY_WAS_TRIGGERED):
-                    forward = -0.5
-                if k == p.B3G_DOWN_ARROW and (v & p.KEY_WAS_RELEASED):
-                    forward = 0
-
-            arbot_pybullet.apply_action((forward, turn))
-
-            time.sleep(1.0 / 240.0)
-
-
-if __name__ == "__main__":
-    teleoperate()
