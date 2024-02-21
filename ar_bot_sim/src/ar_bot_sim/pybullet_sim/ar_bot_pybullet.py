@@ -18,6 +18,7 @@ Simulator for AR Bot in PyBullet
 import numpy as np
 from pybullet_utils import bullet_client
 
+
 class ARBotPybullet:
     def __init__(self, client: bullet_client, arbot: object, gui: bool) -> None:
         """class to spawn in and control arbot
@@ -27,7 +28,6 @@ class ARBotPybullet:
         self.client = client
         self.gui = gui
         self.arbot = arbot
-
 
         self._hit_color = [1, 0, 0]
         self._miss_color = [0, 1, 0]
@@ -45,9 +45,6 @@ class ARBotPybullet:
 
         left_wheel_vel = (linear - angular) * self.speed
         right_wheel_vel = (linear + angular) * self.speed
-
-
-
 
         self.client.setJointMotorControl2(
             self.arbot,
@@ -73,14 +70,15 @@ class ARBotPybullet:
 
         lidar_range = 1
 
-        robot_translation, robot_orientation = self.client.getBasePositionAndOrientation(
-            self.arbot
+        robot_translation, robot_orientation = (
+            self.client.getBasePositionAndOrientation(self.arbot)
         )
 
         # Cast rays and get measurements
         for i, ray_angle in enumerate(np.linspace(120, 240, num_rays)):
             ray_angle = (
-                np.radians(ray_angle) + self.client.getEulerFromQuaternion(robot_orientation)[2]
+                np.radians(ray_angle)
+                + self.client.getEulerFromQuaternion(robot_orientation)[2]
             )
 
             ray_direction = np.array([np.cos(ray_angle), np.sin(ray_angle), 0])
@@ -92,7 +90,9 @@ class ARBotPybullet:
 
             if self.gui and len(self._ray_ids) < num_rays:
                 self._ray_ids.append(
-                    self.client.addUserDebugLine(ray_from[i], ray_to[i], self._miss_color)
+                    self.client.addUserDebugLine(
+                        ray_from[i], ray_to[i], self._miss_color
+                    )
                 )
 
         result = self.client.rayTestBatch(ray_from, ray_to)
