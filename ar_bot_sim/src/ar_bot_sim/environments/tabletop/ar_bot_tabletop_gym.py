@@ -45,22 +45,25 @@ class ARBotTabletopGym(gym.Env):
 
         self.observation_space = gym.spaces.box.Box(
             low=np.array(
-                [-1.5, -1.5, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                [-1.5, -1.5, -1, -1]
             ),  # x, y distance to goal, robot rotation relative to base frame, and Lidar readings between 0 and 1
-            high=np.array([1.5, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+            high=np.array([1.5, 1.5, 1, 1]),
         )
 
         self.client = bullet_client.BulletClient(
             p.GUI if self.render_simulation else p.DIRECT
         )
 
-        self.client.setTimeStep(1.0 / 30.0)
+        self.client.setTimeStep(1.0 / 240.0)
 
         self.ar_bot = None
         self.goal = None
 
         self.count = 0
         self.reset(seed=int(time.time()))
+
+        self.current_linear = 0.0
+        self.current_angular = 0.0
 
     def step(self, action):
         """
@@ -69,18 +72,34 @@ class ARBotTabletopGym(gym.Env):
         :param action: action to take
         """
         action = self.discrete_action_mapping[action]
+        linear, angular = action
 
-        self.ar_bot.apply_action(action)
+        while not np.isclose(linear, self.current_linear, 0.001) or not np.isclose(
+            angular, self.current_angular, 0.001
+        ):
+            if linear > self.current_linear:
+                self.current_linear += 0.01
+            elif linear < self.current_linear:
+                self.current_linear -= 0.01
 
-        self.client.stepSimulation()
+            if angular > self.current_angular:
+                self.current_angular += 0.1
+            elif angular < self.current_angular:
+                self.current_angular -= 0.1
+
+            self.ar_bot.apply_action((self.current_linear, self.current_angular))
+            self.client.stepSimulation()
+
+        self.current_linear = 0.0
+        self.current_angular = 0.0
 
         robot_translation, robot_orientation = p.getBasePositionAndOrientation(
             self.ar_bot.arbot
         )
         reward = -0.1
 
-        dist_to_goal_y = robot_translation[0] - self.goal[0]
-        dist_to_goal_x = robot_translation[1] - self.goal[1]
+        dist_to_goal_y = self.goal[0] - robot_translation[0]
+        dist_to_goal_x = self.goal[1] - robot_translation[1]
 
         complete = False
 
@@ -101,7 +120,7 @@ class ARBotTabletopGym(gym.Env):
         orientation = (np.cos(ang[2]), np.sin(ang[2]))
 
         obs = np.array(
-            (dist_to_goal_y, dist_to_goal_x) + orientation + lidar,
+            (dist_to_goal_y, dist_to_goal_x) + orientation,
             dtype=np.float32,
         )
 
@@ -115,7 +134,7 @@ class ARBotTabletopGym(gym.Env):
             random.seed(seed)
 
         p.resetSimulation()
-        p.setGravity(0, 0, -10)
+        p.setGravity(0, 0, -9.81)
 
         self.count = 0
 
@@ -128,7 +147,7 @@ class ARBotTabletopGym(gym.Env):
             _ = p.loadURDF(self.cube_path, [obstacle_y, obstacle_x, 0.05])
 
         # Spawn random goal
-        goal_x = random.uniform(-0.335, 0.335)
+        goal_x = 0
         goal_y = -0.585
 
         self.goal = (goal_y, goal_x)
@@ -136,11 +155,13 @@ class ARBotTabletopGym(gym.Env):
         p.loadURDF(self.goal_path, [goal_y, goal_x, 0])
 
         # Spawn robot in at random location
-        random_start = random.uniform(-0.35, 0.35)
-
+        random_start = -0.1
         arbot = self.client.loadURDF(self.ar_bot_urdf_path, [0.575, random_start, 0.05])
 
         self.ar_bot = ARBotPybullet(self.client, arbot, self.render_simulation)
+
+        self.current_linear = 0.0
+        self.current_angular = 0.0
 
         for i in range(100):
             self.client.stepSimulation()
@@ -149,8 +170,8 @@ class ARBotTabletopGym(gym.Env):
             self.ar_bot.arbot
         )
 
-        dist_to_goal_y = robot_translation[0] - self.goal[0]
-        dist_to_goal_x = robot_translation[1] - self.goal[1]
+        dist_to_goal_y = self.goal[0] - robot_translation[0]
+        dist_to_goal_x = self.goal[1] - robot_translation[1]
 
         lidar = tuple(self.ar_bot.lidar())
 
@@ -158,7 +179,7 @@ class ARBotTabletopGym(gym.Env):
         orientation = (np.cos(ang[2]), np.sin(ang[2]))
 
         obs = np.array(
-            (dist_to_goal_y, dist_to_goal_x) + orientation + lidar,
+            (dist_to_goal_y, dist_to_goal_x) + orientation,
             dtype=np.float32,
         )
 

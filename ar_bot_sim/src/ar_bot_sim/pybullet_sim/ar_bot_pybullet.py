@@ -51,14 +51,14 @@ class ARBotPybullet:
             0,
             self.client.VELOCITY_CONTROL,
             targetVelocity=left_wheel_vel,
-            force=500,
+            force=0.001,
         )
         self.client.setJointMotorControl2(
             self.arbot,
             1,
             self.client.VELOCITY_CONTROL,
             targetVelocity=right_wheel_vel,
-            force=500,
+            force=0.001,
         )
 
     def lidar(self) -> list:
