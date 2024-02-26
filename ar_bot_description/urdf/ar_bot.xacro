@@ -65,10 +65,6 @@ https://github.com/joshnewans/articubot_one/blob/d5aa5e9bc9039073c0d8fd7fe426e17
         <xacro:solid_cylinder_inertia mass="0.01" height="0.008" radius="0.03">
             <origin rpy="0 0 0" xyz="0 0 0" />
         </xacro:solid_cylinder_inertia>
-        <contact>
-            <lateral_friction value="1.0" />
-            <rolling_friction value="0.0" />
-        </contact>
     </link>
 
 
@@ -93,10 +89,6 @@ https://github.com/joshnewans/articubot_one/blob/d5aa5e9bc9039073c0d8fd7fe426e17
         <xacro:solid_cylinder_inertia mass="0.01 " height="0.008" radius="0.03">
             <origin rpy="0 0 0" xyz="0 0 0" />
         </xacro:solid_cylinder_inertia>
-        <contact>
-            <lateral_friction value="1.0" />
-            <rolling_friction value="0.0" />
-        </contact>
     </link>
 
     <joint name="caster_wheel_joint" type="fixed">

@@ -33,7 +33,7 @@ class ARBotPybullet:
         self._miss_color = [0, 1, 0]
         self._ray_ids = []
 
-        self.speed = 5
+        self.speed = 15
 
     def apply_action(self, action: tuple) -> None:
         """

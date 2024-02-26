@@ -68,10 +68,6 @@ https://github.com/joshnewans/articubot_one/blob/d5aa5e9bc9039073c0d8fd7fe426e17
       <inertia ixx="2.3033333333333326e-06" ixy="0.0" ixz="0.0" iyy="2.3033333333333326e-06"
         iyz="0.0" izz="4.5e-06" />
     </inertial>
-    <contact>
-      <lateral_friction value="1.0" />
-      <rolling_friction value="0.0" />
-    </contact>
   </link>
   <joint name="left_wheel_joint" type="continuous">
     <axis rpy="0 0 0" xyz="0 0 1" />
@@ -97,10 +93,6 @@ https://github.com/joshnewans/articubot_one/blob/d5aa5e9bc9039073c0d8fd7fe426e17
       <inertia ixx="2.3033333333333326e-06" ixy="0.0" ixz="0.0" iyy="2.3033333333333326e-06"
         iyz="0.0" izz="4.5e-06" />
     </inertial>
-    <contact>
-      <lateral_friction value="1.0" />
-      <rolling_friction value="0.0" />
-    </contact>
   </link>
   <joint name="caster_wheel_joint" type="fixed">
     <parent link="base_link" />

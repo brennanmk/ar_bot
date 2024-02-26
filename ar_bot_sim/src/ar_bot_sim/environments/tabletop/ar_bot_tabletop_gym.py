@@ -83,9 +83,9 @@ class ARBotTabletopGym(gym.Env):
                 self.current_linear -= 0.01
 
             if angular > self.current_angular:
-                self.current_angular += 0.1
+                self.current_angular += 0.01
             elif angular < self.current_angular:
-                self.current_angular -= 0.1
+                self.current_angular -= 0.01
 
             self.ar_bot.apply_action((self.current_linear, self.current_angular))
             self.client.stepSimulation()
@@ -110,7 +110,6 @@ class ARBotTabletopGym(gym.Env):
             complete = True
             self.count = 0
 
-        # check if goal reached, if so give large reward
         if -0.05 < dist_to_goal_y < 0.05 and -0.05 < dist_to_goal_x < 0.05:
             complete = True
             reward = 1
@@ -147,7 +146,7 @@ class ARBotTabletopGym(gym.Env):
             _ = p.loadURDF(self.cube_path, [obstacle_y, obstacle_x, 0.05])
 
         # Spawn random goal
-        goal_x = 0
+        goal_x = random.uniform(-0.335, 0.335)
         goal_y = -0.585
 
         self.goal = (goal_y, goal_x)
@@ -155,7 +154,7 @@ class ARBotTabletopGym(gym.Env):
         p.loadURDF(self.goal_path, [goal_y, goal_x, 0])
 
         # Spawn robot in at random location
-        random_start = -0.1
+        random_start = random.uniform(-0.35, 0.35)
         arbot = self.client.loadURDF(self.ar_bot_urdf_path, [0.575, random_start, 0.05])
 
         self.ar_bot = ARBotPybullet(self.client, arbot, self.render_simulation)
