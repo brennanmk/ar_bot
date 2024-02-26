@@ -45,9 +45,9 @@ class ARBotTabletopGym(gym.Env):
 
         self.observation_space = gym.spaces.box.Box(
             low=np.array(
-                [-1.5, -1.5, -1, -1]
+                [-1.5, -1.5, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             ),  # x, y distance to goal, robot rotation relative to base frame, and Lidar readings between 0 and 1
-            high=np.array([1.5, 1.5, 1, 1]),
+            high=np.array([1.5, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
         )
 
         self.client = bullet_client.BulletClient(
@@ -119,7 +119,7 @@ class ARBotTabletopGym(gym.Env):
         orientation = (np.cos(ang[2]), np.sin(ang[2]))
 
         obs = np.array(
-            (dist_to_goal_y, dist_to_goal_x) + orientation,
+            (dist_to_goal_y, dist_to_goal_x) + orientation + lidar,
             dtype=np.float32,
         )
 
@@ -178,7 +178,7 @@ class ARBotTabletopGym(gym.Env):
         orientation = (np.cos(ang[2]), np.sin(ang[2]))
 
         obs = np.array(
-            (dist_to_goal_y, dist_to_goal_x) + orientation,
+            (dist_to_goal_y, dist_to_goal_x) + orientation + lidar,
             dtype=np.float32,
         )
 
