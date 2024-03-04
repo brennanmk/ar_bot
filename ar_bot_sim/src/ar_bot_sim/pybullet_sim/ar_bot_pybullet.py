@@ -66,16 +66,20 @@ class ARBotPybullet:
 
         ray_from = []
         ray_to = []
-        num_rays = 9
+        num_rays = 16
 
         lidar_range = 1
 
         robot_translation, robot_orientation = (
             self.client.getBasePositionAndOrientation(self.arbot)
         )
+        
+        # convert to list (mutability) and then raise the hieght so the beam does not interfere with wheel
+        robot_translation = list(robot_translation)
+        robot_translation[2] = 0.075
 
         # Cast rays and get measurements
-        for i, ray_angle in enumerate(np.linspace(120, 240, num_rays)):
+        for i, ray_angle in enumerate(np.linspace(0, 360, num_rays)):
             ray_angle = (
                 np.radians(ray_angle)
                 + self.client.getEulerFromQuaternion(robot_orientation)[2]

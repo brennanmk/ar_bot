@@ -8,9 +8,9 @@ from typing import Optional
 from pybullet_utils import bullet_client
 from ar_bot_sim.pybullet_sim.ar_bot_pybullet import ARBotPybullet
 import rospkg
+from ray.rllib.env.apis.task_settable_env import TaskSettableEnv, TaskType
 
-
-class ARBotTabletopGym(gym.Env):
+class ARBotTabletopGym(TaskSettableEnv):
     """
     Gym environment for ARBot
     """
@@ -27,7 +27,7 @@ class ARBotTabletopGym(gym.Env):
         self.number_of_obstacles = config["number_of_obstacles"]
         self.action_space = config["actions"]
         self.max_timesteps_per_episode = config["max_timesteps_per_episode"]
-
+ 
         rospack = rospkg.RosPack()
         simulator_path = rospack.get_path("ar_bot_sim")
         robot_description_path = rospack.get_path("ar_bot_description")
@@ -45,9 +45,9 @@ class ARBotTabletopGym(gym.Env):
 
         self.observation_space = gym.spaces.box.Box(
             low=np.array(
-                [-1.5, -1.5, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                [-1.5, -1.5, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             ),  # x, y distance to goal, robot rotation relative to base frame, and Lidar readings between 0 and 1
-            high=np.array([1.5, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
+            high=np.array([1.5, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]),
         )
 
         self.client = bullet_client.BulletClient(
@@ -60,7 +60,7 @@ class ARBotTabletopGym(gym.Env):
         self.goal = None
 
         self.count = 0
-        self.reset(seed=int(time.time()))
+        self.reset(seed=config.worker_index * int(time.time()))
 
         self.current_linear = 0.0
         self.current_angular = 0.0
@@ -90,6 +90,22 @@ class ARBotTabletopGym(gym.Env):
             self.ar_bot.apply_action((self.current_linear, self.current_angular))
             self.client.stepSimulation()
 
+        while not np.isclose(0, self.current_linear, 0.001) or not np.isclose(
+            0, self.current_angular, 0.001
+        ):
+            if 0 < self.current_linear:
+                self.current_linear -= 0.01
+            elif 0 > self.current_linear:
+                self.current_linear += 0.01
+
+            if 0 < self.current_angular:
+                self.current_angular -= 0.01
+            elif 0 > self.current_angular:
+                self.current_angular += 0.01
+
+            self.ar_bot.apply_action((self.current_linear, self.current_angular))
+            self.client.stepSimulation()
+
         self.current_linear = 0.0
         self.current_angular = 0.0
 
@@ -104,6 +120,9 @@ class ARBotTabletopGym(gym.Env):
         complete = False
 
         lidar = tuple(self.ar_bot.lidar())
+
+        for measurement in lidar:
+            if measurement <= 0.055: reward = -0.2
 
         self.count += 1
         if self.count >= self.max_timesteps_per_episode:
@@ -154,7 +173,7 @@ class ARBotTabletopGym(gym.Env):
         p.loadURDF(self.goal_path, [goal_y, goal_x, 0])
 
         # Spawn robot in at random location
-        random_start = random.uniform(-0.35, 0.35)
+        random_start = random.uniform(-0.325, 0.325)
         arbot = self.client.loadURDF(self.ar_bot_urdf_path, [0.575, random_start, 0.05])
 
         self.ar_bot = ARBotPybullet(self.client, arbot, self.render_simulation)
@@ -190,3 +209,9 @@ class ARBotTabletopGym(gym.Env):
         """
 
         self.client.disconnect()
+
+    def set_task(self, task: TaskType) -> None:
+        self.number_of_obstacles = task
+
+    def get_task(self) -> TaskType:
+        return self.number_of_obstacles
