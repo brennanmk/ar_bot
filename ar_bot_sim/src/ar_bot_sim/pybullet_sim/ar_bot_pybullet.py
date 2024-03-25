@@ -70,10 +70,11 @@ class ARBotPybullet:
 
         lidar_range = 1
 
-        robot_translation, robot_orientation = (
-            self.client.getBasePositionAndOrientation(self.arbot)
-        )
-        
+        (
+            robot_translation,
+            robot_orientation,
+        ) = self.client.getBasePositionAndOrientation(self.arbot)
+
         # convert to list (mutability) and then raise the hieght so the beam does not interfere with wheel
         robot_translation = list(robot_translation)
         robot_translation[2] = 0.075

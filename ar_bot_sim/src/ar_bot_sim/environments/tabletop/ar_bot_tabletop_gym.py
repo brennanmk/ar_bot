@@ -158,7 +158,7 @@ class ARBotTabletopGym(TaskSettableEnv):
 
         _ = p.loadURDF(self.plane_path)
 
-        for _ in range(random.randint(0, self.number_of_obstacles)):
+        for _ in range(self.number_of_obstacles):
             obstacle_x = random.uniform(-0.25, 0.25)
             obstacle_y = random.uniform(-0.4, 0.4)
 
@@ -207,8 +207,10 @@ class ARBotTabletopGym(TaskSettableEnv):
         """
         Close pybullet sim
         """
-
-        self.client.disconnect()
+        try:
+            self.client.disconnect()
+        except p.error:
+            pass
 
     def set_task(self, task: TaskType) -> None:
         self.number_of_obstacles = task
